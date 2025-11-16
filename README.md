@@ -92,32 +92,45 @@ docker-compose exec backend alembic upgrade head
 
 ## デプロイ（本番・テスト環境）
 
-### 🆓 完全無料プラン（推奨：テスト環境）
+### ⭐ Azure デプロイ（推奨）
 
-Vercel + Render を使用した完全無料のテスト環境構築が可能です。
+**30分で構築完了** - Azure上に安定した環境を構築できます。
+
+**📖 クイックスタート**: [`AZURE_QUICK_START.md`](AZURE_QUICK_START.md)
+**📚 詳細ガイド**: [`docs/AZURE_DEPLOYMENT.md`](docs/AZURE_DEPLOYMENT.md)
 
 **サービス構成**:
-- フロントエンド: **Vercel**（無料）
-- バックエンド: **Render**（無料）
-- データベース: **Render PostgreSQL**（無料）
+- フロントエンド: **Azure Static Web Apps**（無料）
+- バックエンド: **Azure App Service**（Free F1 または Basic B1）
+- データベース: **Azure Database for PostgreSQL**（Burstable B1ms）
 
-**デプロイ手順**:
-詳細な手順は [`docs/DEPLOYMENT_FREE.md`](docs/DEPLOYMENT_FREE.md) を参照してください。
+**コスト**:
+- **最小構成**（テスト用）: 約1,500円/月
+- **推奨構成**（本番用）: 約3,000円/月
 
-**簡易手順**:
-1. GitHub、Vercel、Renderにサインアップ
-2. Renderで `render.yaml` を使用してデプロイ
-3. Vercelでフロントエンドをデプロイ
-4. CORS設定を更新
+**メリット**:
+- ✅ シンプルな設定
+- ✅ 24時間安定稼働
+- ✅ Azure Portal で一元管理
+- ✅ 本番環境にも対応
+
+**3ステップでデプロイ**:
+1. Azure Database for PostgreSQL を作成
+2. Azure App Service でバックエンドをデプロイ
+3. Azure Static Web Apps でフロントエンドをデプロイ
+
+---
+
+### 🆓 完全無料プラン（代替案）
+
+Vercel + Render を使用した完全無料のテスト環境も構築可能です。
+
+**デプロイ手順**: [`docs/DEPLOYMENT_FREE.md`](docs/DEPLOYMENT_FREE.md)
 
 **制限事項**:
-- Renderは15分非アクティブでスリープ（起動に30秒〜1分）
-- データベースは1GB、90日後に削除
-- 帯域幅・ビルド時間に制限あり
-
-### 💰 Azure本番環境
-
-Azureを使用した本番環境のデプロイ手順は [`docs/AZURE_DEPLOYMENT.md`](docs/AZURE_DEPLOYMENT.md) を参照してください（作成予定）。
+- Renderは15分非アクティブでスリープ
+- 設定がやや複雑
+- データベースは90日後に削除
 
 ## 開発ガイド
 
