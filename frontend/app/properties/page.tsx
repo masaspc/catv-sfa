@@ -148,7 +148,7 @@ export default function PropertiesPage() {
                 クリックして詳細を表示
               </CardDescription>
             </div>
-            <Button>新規物件登録</Button>
+            <Button onClick={() => router.push('/properties/new')}>新規物件登録</Button>
           </CardHeader>
           <CardContent>
             {loading ? (

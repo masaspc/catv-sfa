@@ -140,7 +140,7 @@ export default function CustomersPage() {
                 クリックして詳細を表示
               </CardDescription>
             </div>
-            <Button>新規顧客登録</Button>
+            <Button onClick={() => router.push('/customers/new')}>新規顧客登録</Button>
           </CardHeader>
           <CardContent>
             {loading ? (
