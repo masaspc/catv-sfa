@@ -124,25 +124,25 @@ export default function DashboardPage() {
         <div className="mt-8">
           <h2 className="text-lg font-medium text-gray-900 mb-4">クイックアクション</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Button className="h-24">
+            <Button className="h-24" onClick={() => router.push('/daily-reports')}>
               <div className="text-center">
                 <div className="text-lg font-semibold">日報入力</div>
                 <div className="text-xs mt-1 opacity-80">今日の活動を記録</div>
               </div>
             </Button>
-            <Button className="h-24" variant="outline">
+            <Button className="h-24" variant="outline" onClick={() => router.push('/customers')}>
               <div className="text-center">
                 <div className="text-lg font-semibold">顧客管理</div>
                 <div className="text-xs mt-1 opacity-80">顧客情報を確認</div>
               </div>
             </Button>
-            <Button className="h-24" variant="outline">
+            <Button className="h-24" variant="outline" onClick={() => router.push('/deals')}>
               <div className="text-center">
                 <div className="text-lg font-semibold">案件管理</div>
                 <div className="text-xs mt-1 opacity-80">営業案件を管理</div>
               </div>
             </Button>
-            <Button className="h-24" variant="outline">
+            <Button className="h-24" variant="outline" onClick={() => router.push('/properties')}>
               <div className="text-center">
                 <div className="text-lg font-semibold">集合住宅</div>
                 <div className="text-xs mt-1 opacity-80">物件情報を確認</div>
@@ -151,14 +151,16 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Phase 1 完了メッセージ */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-blue-900 mb-2">
-            Phase 1: 基盤構築 完了
+        {/* Phase 2 進行中メッセージ */}
+        <div className="mt-8 bg-green-50 border border-green-200 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-green-900 mb-2">
+            Phase 2: コア機能実装 進行中
           </h3>
-          <p className="text-sm text-blue-800">
-            認証システム、ユーザー管理、基本UIの実装が完了しました。<br />
-            次のフェーズでは、顧客管理、案件管理、営業活動管理などのコア機能を実装していきます。
+          <p className="text-sm text-green-800">
+            顧客管理、集合住宅管理の実装が完了しました。<br />
+            ✅ 顧客一覧・検索機能<br />
+            ✅ 集合住宅一覧・検索機能<br />
+            次は案件管理、営業活動管理、日報機能を実装予定です。
           </p>
         </div>
       </main>
