@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # PostgreSQLデータベース
+  db:
+    image: postgres:15-alpine
+    container_name: catv-sfa-db
+    environment:
+      POSTGRES_USER: catv_user
+      POSTGRES_PASSWORD: catv_password
+      POSTGRES_DB: catv_sfa_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U catv_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # FastAPIバックエンド
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: catv-sfa-backend
+    environment:
+      DATABASE_URL: postgresql://catv_user:catv_password@db:5432/catv_sfa_db
+      SECRET_KEY: your-secret-key-change-in-production
+      BACKEND_CORS_ORIGINS: '["http://localhost:3000"]'
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "
+        alembic upgrade head &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      "
+
+  # Next.jsフロントエンド（後で追加）
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   container_name: catv-sfa-frontend
+  #   ports:
+  #     - "3000:3000"
+  #   volumes:
+  #     - ./frontend:/app
+  #     - /app/node_modules
+  #   environment:
+  #     - NEXT_PUBLIC_API_URL=http://localhost:8000
+  #   depends_on:
+  #     - backend
+
+volumes:
+  postgres_data:
