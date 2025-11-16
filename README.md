@@ -22,10 +22,9 @@ Tokyo Bay Net向けのCATV事業者専用営業支援WEBシステムです。
 - **JWT** (認証)
 - **Alembic** (マイグレーション)
 
-### インフラ（Azure）
-- **Azure App Service** (フロントエンド・バックエンド)
-- **Azure Database for PostgreSQL**
-- **Azure Blob Storage** (画像・ファイル保存)
+### インフラ
+- **本番環境**: Azure App Service / Azure Database for PostgreSQL
+- **テスト環境（無料）**: Vercel + Render + PostgreSQL
 
 ## プロジェクト構成
 
@@ -90,6 +89,35 @@ docker-compose exec backend alembic upgrade head
 - フロントエンド: http://localhost:3000
 - バックエンドAPI: http://localhost:8000
 - API ドキュメント: http://localhost:8000/docs
+
+## デプロイ（本番・テスト環境）
+
+### 🆓 完全無料プラン（推奨：テスト環境）
+
+Vercel + Render を使用した完全無料のテスト環境構築が可能です。
+
+**サービス構成**:
+- フロントエンド: **Vercel**（無料）
+- バックエンド: **Render**（無料）
+- データベース: **Render PostgreSQL**（無料）
+
+**デプロイ手順**:
+詳細な手順は [`docs/DEPLOYMENT_FREE.md`](docs/DEPLOYMENT_FREE.md) を参照してください。
+
+**簡易手順**:
+1. GitHub、Vercel、Renderにサインアップ
+2. Renderで `render.yaml` を使用してデプロイ
+3. Vercelでフロントエンドをデプロイ
+4. CORS設定を更新
+
+**制限事項**:
+- Renderは15分非アクティブでスリープ（起動に30秒〜1分）
+- データベースは1GB、90日後に削除
+- 帯域幅・ビルド時間に制限あり
+
+### 💰 Azure本番環境
+
+Azureを使用した本番環境のデプロイ手順は [`docs/AZURE_DEPLOYMENT.md`](docs/AZURE_DEPLOYMENT.md) を参照してください（作成予定）。
 
 ## 開発ガイド
 

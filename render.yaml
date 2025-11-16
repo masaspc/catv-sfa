@@ -1,0 +1,32 @@
+services:
+  # FastAPI バックエンド
+  - type: web
+    name: catv-sfa-backend
+    env: python
+    region: singapore  # 東京リージョンがない場合はシンガポール
+    buildCommand: "cd backend && pip install -r requirements.txt"
+    startCommand: "cd backend && alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: catv-sfa-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 1440
+      - key: BACKEND_CORS_ORIGINS
+        value: '["*"]'
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+    healthCheckPath: /health
+
+databases:
+  # PostgreSQL データベース（Renderの無料PostgreSQL）
+  - name: catv-sfa-db
+    plan: free
+    databaseName: catv_sfa_db
+    user: catv_user
