@@ -6,6 +6,7 @@ import { useAuthStore } from '@/lib/store/auth-store'
 import { dashboardApi, DashboardKPIs, ActivitiesByType, DealsByPhase } from '@/lib/dashboard'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { NotificationPanel } from '@/components/notifications/notification-panel'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -390,6 +391,8 @@ export default function DashboardPage() {
             </Card>
           </div>
         </div>
+
+        {/* 通知パネル */}        <div className="mt-8">          <NotificationPanel />        </div>
 
         {/* Phase 3 進行中メッセージ */}
         <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
