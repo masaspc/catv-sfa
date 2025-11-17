@@ -285,6 +285,14 @@ export default function DashboardPage() {
                 <div className="text-xs mt-1 opacity-80">営業レポート生成</div>
               </div>
             </Button>
+            {(user?.role === 'admin' || user?.role === 'manager') && (
+              <Button className="h-24" variant="outline" onClick={() => router.push('/settings/email')}>
+                <div className="text-center">
+                  <div className="text-lg font-semibold">メール通知</div>
+                  <div className="text-xs mt-1 opacity-80">通知設定・送信</div>
+                </div>
+              </Button>
+            )}
           </div>
         </div>
 
