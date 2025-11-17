@@ -1,18 +1,24 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store/auth-store'
 import { dailyReportsApi, DailyReport } from '@/lib/daily-reports'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Label } from '@/components/ui/label'
 
 export default function DailyReportsPage() {
   const router = useRouter()
   const { user, checkAuth } = useAuthStore()
-  const [dailyReports, setDailyReports] = useState<DailyReport[]>([])
+  const [allDailyReports, setAllDailyReports] = useState<DailyReport[]>([])
   const [loading, setLoading] = useState(true)
+
+  // フィルタ状態
+  const [startDate, setStartDate] = useState<string>('')
+  const [endDate, setEndDate] = useState<string>('')
 
   useEffect(() => {
     checkAuth().then(() => {
@@ -32,12 +38,37 @@ export default function DailyReportsPage() {
     try {
       setLoading(true)
       const data = await dailyReportsApi.getDailyReports(0, 100)
-      setDailyReports(data)
+      setAllDailyReports(data)
     } catch (error) {
       console.error('日報一覧の取得に失敗しました:', error)
     } finally {
       setLoading(false)
     }
+  }
+
+  // フィルタリングされた日報リスト
+  const filteredDailyReports = useMemo(() => {
+    return allDailyReports.filter((report) => {
+      // 日付範囲フィルタ
+      if (startDate && report.report_date) {
+        const reportDate = new Date(report.report_date)
+        if (reportDate < new Date(startDate)) {
+          return false
+        }
+      }
+      if (endDate && report.report_date) {
+        const reportDate = new Date(report.report_date)
+        if (reportDate > new Date(endDate)) {
+          return false
+        }
+      }
+      return true
+    })
+  }, [allDailyReports, startDate, endDate])
+
+  const handleResetFilters = () => {
+    setStartDate('')
+    setEndDate('')
   }
 
   if (!user) {
@@ -58,7 +89,7 @@ export default function DailyReportsPage() {
               日報管理
             </h1>
             <p className="mt-1 text-sm text-gray-500">
-              全{dailyReports.length}件の日報
+              全{allDailyReports.length}件中 {filteredDailyReports.length}件表示
             </p>
           </div>
           <Button onClick={() => router.push('/dashboard')}>
@@ -69,6 +100,39 @@ export default function DailyReportsPage() {
 
       {/* メインコンテンツ */}
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        {/* フィルタバー */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>日付フィルタ</CardTitle>
+            <CardDescription>
+              報告日で絞り込みできます
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-4 items-end">
+              <div className="flex-1">
+                <Label>報告日範囲</Label>
+                <div className="flex gap-2 items-center mt-1">
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                  />
+                  <span className="text-gray-500">〜</span>
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
+              <Button variant="outline" onClick={handleResetFilters}>
+                クリア
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* 日報一覧 */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
@@ -85,9 +149,11 @@ export default function DailyReportsPage() {
               <div className="text-center py-8">
                 <p>読み込み中...</p>
               </div>
-            ) : dailyReports.length === 0 ? (
+            ) : filteredDailyReports.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-500">日報が見つかりませんでした</p>
+                <p className="text-gray-500">
+                  {allDailyReports.length === 0 ? '日報が見つかりませんでした' : '条件に一致する日報がありません'}
+                </p>
               </div>
             ) : (
               <>
@@ -105,7 +171,7 @@ export default function DailyReportsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {dailyReports.map((report) => (
+                      {filteredDailyReports.map((report) => (
                         <TableRow
                           key={report.id}
                           className="cursor-pointer"
@@ -131,7 +197,7 @@ export default function DailyReportsPage() {
 
                 {/* モバイル表示 */}
                 <div className="md:hidden space-y-4">
-                  {dailyReports.map((report) => (
+                  {filteredDailyReports.map((report) => (
                     <Card
                       key={report.id}
                       className="cursor-pointer hover:bg-gray-50"

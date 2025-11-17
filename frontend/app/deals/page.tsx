@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store/auth-store'
 import { dealsApi, Deal } from '@/lib/deals'
@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
 
 const dealTypeLabels: { [key: string]: string } = {
   new_individual: '新規個人',
@@ -18,12 +20,31 @@ const dealTypeLabels: { [key: string]: string } = {
   retention: 'リテンション',
 }
 
+const phaseLabels: { [key: string]: string } = {
+  prospecting: '見込み客発掘',
+  qualification: '資格確認',
+  proposal: '提案',
+  negotiation: '交渉',
+  closing: 'クロージング',
+  won: '受注',
+  lost: '失注',
+}
+
 export default function DealsPage() {
   const router = useRouter()
   const { user, checkAuth } = useAuthStore()
-  const [deals, setDeals] = useState<Deal[]>([])
+  const [allDeals, setAllDeals] = useState<Deal[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+
+  // フィルタ状態
+  const [selectedPhase, setSelectedPhase] = useState<string>('all')
+  const [selectedDealType, setSelectedDealType] = useState<string>('all')
+  const [minProbability, setMinProbability] = useState<string>('')
+  const [maxProbability, setMaxProbability] = useState<string>('')
+  const [startDate, setStartDate] = useState<string>('')
+  const [endDate, setEndDate] = useState<string>('')
+  const [showFilters, setShowFilters] = useState(false)
 
   useEffect(() => {
     checkAuth().then(() => {
@@ -43,7 +64,7 @@ export default function DealsPage() {
     try {
       setLoading(true)
       const data = await dealsApi.getDeals(0, 100)
-      setDeals(data)
+      setAllDeals(data)
     } catch (error) {
       console.error('案件一覧の取得に失敗しました:', error)
     } finally {
@@ -51,21 +72,58 @@ export default function DealsPage() {
     }
   }
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      loadDeals()
-      return
-    }
+  // フィルタリングされた案件リスト
+  const filteredDeals = useMemo(() => {
+    return allDeals.filter((deal) => {
+      // 検索クエリフィルタ
+      if (searchQuery.trim() && !deal.deal_name.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false
+      }
 
-    try {
-      setLoading(true)
-      const data = await dealsApi.searchDeals(searchQuery)
-      setDeals(data)
-    } catch (error) {
-      console.error('検索に失敗しました:', error)
-    } finally {
-      setLoading(false)
-    }
+      // フェーズフィルタ
+      if (selectedPhase !== 'all' && deal.phase !== selectedPhase) {
+        return false
+      }
+
+      // 案件種別フィルタ
+      if (selectedDealType !== 'all' && deal.deal_type !== selectedDealType) {
+        return false
+      }
+
+      // 受注確度フィルタ
+      if (minProbability && deal.probability !== undefined && deal.probability < parseInt(minProbability)) {
+        return false
+      }
+      if (maxProbability && deal.probability !== undefined && deal.probability > parseInt(maxProbability)) {
+        return false
+      }
+
+      // 日付範囲フィルタ
+      if (startDate && deal.expected_close_date) {
+        const dealDate = new Date(deal.expected_close_date)
+        if (dealDate < new Date(startDate)) {
+          return false
+        }
+      }
+      if (endDate && deal.expected_close_date) {
+        const dealDate = new Date(deal.expected_close_date)
+        if (dealDate > new Date(endDate)) {
+          return false
+        }
+      }
+
+      return true
+    })
+  }, [allDeals, searchQuery, selectedPhase, selectedDealType, minProbability, maxProbability, startDate, endDate])
+
+  const handleResetFilters = () => {
+    setSearchQuery('')
+    setSelectedPhase('all')
+    setSelectedDealType('all')
+    setMinProbability('')
+    setMaxProbability('')
+    setStartDate('')
+    setEndDate('')
   }
 
   if (!user) {
@@ -86,7 +144,7 @@ export default function DealsPage() {
               案件管理
             </h1>
             <p className="mt-1 text-sm text-gray-500">
-              全{deals.length}件の案件
+              全{allDeals.length}件中 {filteredDeals.length}件表示
             </p>
           </div>
           <Button onClick={() => router.push('/dashboard')}>
@@ -97,28 +155,122 @@ export default function DealsPage() {
 
       {/* メインコンテンツ */}
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        {/* 検索バー */}
+        {/* 検索・フィルタバー */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>案件検索</CardTitle>
-            <CardDescription>
-              案件名で検索できます
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-4">
-              <Input
-                placeholder="検索キーワードを入力..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                className="flex-1"
-              />
-              <Button onClick={handleSearch}>検索</Button>
-              <Button variant="outline" onClick={loadDeals}>
-                リセット
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>案件検索・フィルタ</CardTitle>
+                <CardDescription>
+                  案件名で検索し、条件でフィルタできます
+                </CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                {showFilters ? '詳細フィルタを隠す' : '詳細フィルタを表示'}
               </Button>
             </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* 検索バー */}
+            <div className="flex gap-4">
+              <Input
+                placeholder="案件名で検索..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1"
+              />
+              <Button variant="outline" onClick={handleResetFilters}>
+                すべてクリア
+              </Button>
+            </div>
+
+            {/* 詳細フィルタ */}
+            {showFilters && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4 border-t">
+                {/* フェーズフィルタ */}
+                <div>
+                  <Label htmlFor="phase-filter">フェーズ</Label>
+                  <Select value={selectedPhase} onValueChange={setSelectedPhase}>
+                    <SelectTrigger id="phase-filter">
+                      <SelectValue placeholder="すべて" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">すべて</SelectItem>
+                      {Object.entries(phaseLabels).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* 案件種別フィルタ */}
+                <div>
+                  <Label htmlFor="deal-type-filter">案件種別</Label>
+                  <Select value={selectedDealType} onValueChange={setSelectedDealType}>
+                    <SelectTrigger id="deal-type-filter">
+                      <SelectValue placeholder="すべて" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">すべて</SelectItem>
+                      {Object.entries(dealTypeLabels).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* 受注確度範囲 */}
+                <div className="md:col-span-2 lg:col-span-1">
+                  <Label>受注確度（%）</Label>
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      placeholder="最小"
+                      value={minProbability}
+                      onChange={(e) => setMinProbability(e.target.value)}
+                      className="w-24"
+                    />
+                    <span className="text-gray-500">〜</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      placeholder="最大"
+                      value={maxProbability}
+                      onChange={(e) => setMaxProbability(e.target.value)}
+                      className="w-24"
+                    />
+                  </div>
+                </div>
+
+                {/* 受注予定日範囲 */}
+                <div className="md:col-span-2">
+                  <Label>受注予定日範囲</Label>
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                    />
+                    <span className="text-gray-500">〜</span>
+                    <Input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -138,9 +290,11 @@ export default function DealsPage() {
               <div className="text-center py-8">
                 <p>読み込み中...</p>
               </div>
-            ) : deals.length === 0 ? (
+            ) : filteredDeals.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-500">案件が見つかりませんでした</p>
+                <p className="text-gray-500">
+                  {allDeals.length === 0 ? '案件が見つかりませんでした' : '条件に一致する案件がありません'}
+                </p>
               </div>
             ) : (
               <>
@@ -158,7 +312,7 @@ export default function DealsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {deals.map((deal) => (
+                      {filteredDeals.map((deal) => (
                         <TableRow
                           key={deal.id}
                           className="cursor-pointer"
@@ -188,7 +342,7 @@ export default function DealsPage() {
 
                 {/* モバイル表示 */}
                 <div className="md:hidden space-y-4">
-                  {deals.map((deal) => (
+                  {filteredDeals.map((deal) => (
                     <Card
                       key={deal.id}
                       className="cursor-pointer hover:bg-gray-50"
