@@ -6,6 +6,7 @@ from app.crud.crud_activity import crud_activity
 from app.crud.crud_daily_report import crud_daily_report
 from app.crud.crud_contract import crud_contract
 from app.crud.crud_notification import crud_notification
+from app.crud.crud_report import crud_report
 
 __all__ = [
     "crud_user",
@@ -16,4 +17,5 @@ __all__ = [
     "crud_daily_report",
     "crud_contract",
     "crud_notification",
+    "crud_report",
 ]

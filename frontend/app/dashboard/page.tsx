@@ -279,6 +279,12 @@ export default function DashboardPage() {
                 <div className="text-xs mt-1 opacity-80">活動履歴を確認</div>
               </div>
             </Button>
+            <Button className="h-24" variant="outline" onClick={() => router.push('/reports')}>
+              <div className="text-center">
+                <div className="text-lg font-semibold">レポート</div>
+                <div className="text-xs mt-1 opacity-80">営業レポート生成</div>
+              </div>
+            </Button>
           </div>
         </div>
 

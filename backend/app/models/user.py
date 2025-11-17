@@ -29,3 +29,4 @@ class User(Base):
 
     # リレーション
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
+    reports = relationship("Report", back_populates="user", cascade="all, delete-orphan")
