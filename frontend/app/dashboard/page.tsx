@@ -3,10 +3,14 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store/auth-store'
-import { dashboardApi, DashboardKPIs, ActivitiesByType, DealsByPhase } from '@/lib/dashboard'
+import { dashboardApi, DashboardKPIs, ActivitiesByType, DealsByPhase, RevenueTrendItem, PipelineValueItem, WinRateTrendItem } from '@/lib/dashboard'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { NotificationPanel } from '@/components/notifications/notification-panel'
+import { RevenueTrendChart } from '@/components/charts/revenue-trend-chart'
+import { PipelineValueChart } from '@/components/charts/pipeline-value-chart'
+import { WinRateTrendChart } from '@/components/charts/win-rate-trend-chart'
+import { ActivitiesPieChart } from '@/components/charts/activities-pie-chart'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -14,6 +18,9 @@ export default function DashboardPage() {
   const [kpis, setKpis] = useState<DashboardKPIs | null>(null)
   const [activitiesByType, setActivitiesByType] = useState<ActivitiesByType>({})
   const [dealsByPhase, setDealsByPhase] = useState<DealsByPhase>({})
+  const [revenueTrend, setRevenueTrend] = useState<RevenueTrendItem[]>([])
+  const [pipelineValue, setPipelineValue] = useState<PipelineValueItem[]>([])
+  const [winRateTrend, setWinRateTrend] = useState<WinRateTrendItem[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -33,14 +40,20 @@ export default function DashboardPage() {
   const loadDashboardData = async () => {
     try {
       setLoading(true)
-      const [kpisData, activitiesData, dealsData] = await Promise.all([
+      const [kpisData, activitiesData, dealsData, revenueTrendData, pipelineValueData, winRateTrendData] = await Promise.all([
         dashboardApi.getKPIs(),
         dashboardApi.getActivitiesByType(),
         dashboardApi.getDealsByPhase(),
+        dashboardApi.getRevenueTrend(),
+        dashboardApi.getPipelineValue(),
+        dashboardApi.getWinRateTrend(),
       ])
       setKpis(kpisData)
       setActivitiesByType(activitiesData)
       setDealsByPhase(dealsData)
+      setRevenueTrend(revenueTrendData)
+      setPipelineValue(pipelineValueData)
+      setWinRateTrend(winRateTrendData)
     } catch (error) {
       console.error('ダッシュボードデータの取得に失敗しました:', error)
     } finally {
@@ -299,114 +312,33 @@ export default function DashboardPage() {
         {/* データ可視化セクション */}
         <div className="mt-8">
           <h2 className="text-lg font-medium text-gray-900 mb-4">データ分析</h2>
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {/* 活動種別グラフ */}
+          {loading ? (
             <Card>
-              <CardHeader>
-                <CardTitle>活動種別（今月）</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <p className="text-sm text-gray-500">読み込み中...</p>
-                ) : Object.keys(activitiesByType).length === 0 ? (
-                  <p className="text-sm text-gray-500">データがありません</p>
-                ) : (
-                  <div className="space-y-4">
-                    {Object.entries(activitiesByType).map(([type, count]) => {
-                      const maxCount = Math.max(...Object.values(activitiesByType))
-                      const percentage = maxCount > 0 ? (count / maxCount) * 100 : 0
-
-                      const typeLabels: Record<string, string> = {
-                        visit: '訪問',
-                        phone: '電話',
-                        email: 'メール',
-                        meeting: '商談',
-                        other: 'その他',
-                      }
-
-                      return (
-                        <div key={type}>
-                          <div className="flex justify-between text-sm mb-1">
-                            <span className="font-medium text-gray-700">
-                              {typeLabels[type] || type}
-                            </span>
-                            <span className="text-gray-900 font-semibold">{count}件</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2.5">
-                            <div
-                              className="bg-blue-600 h-2.5 rounded-full"
-                              style={{ width: `${percentage}%` }}
-                            />
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
+              <CardContent className="py-8">
+                <p className="text-center text-sm text-gray-500">データを読み込み中...</p>
               </CardContent>
             </Card>
+          ) : (
+            <div className="space-y-6">
+              {/* グラフ1行目：売上推移と案件パイプライン */}
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <RevenueTrendChart data={revenueTrend} />
+                <PipelineValueChart data={pipelineValue} />
+              </div>
 
-            {/* 案件フェーズグラフ */}
-            <Card>
-              <CardHeader>
-                <CardTitle>案件フェーズ分布</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <p className="text-sm text-gray-500">読み込み中...</p>
-                ) : Object.keys(dealsByPhase).length === 0 ? (
-                  <p className="text-sm text-gray-500">データがありません</p>
-                ) : (
-                  <div className="space-y-4">
-                    {Object.entries(dealsByPhase).map(([phase, count]) => {
-                      const maxCount = Math.max(...Object.values(dealsByPhase))
-                      const percentage = maxCount > 0 ? (count / maxCount) * 100 : 0
-
-                      const phaseLabels: Record<string, string> = {
-                        prospecting: '見込み客発掘',
-                        qualification: '資格確認',
-                        proposal: '提案',
-                        negotiation: '交渉',
-                        closing: 'クロージング',
-                        won: '受注',
-                        lost: '失注',
-                      }
-
-                      const phaseColors: Record<string, string> = {
-                        prospecting: 'bg-gray-500',
-                        qualification: 'bg-yellow-500',
-                        proposal: 'bg-blue-500',
-                        negotiation: 'bg-orange-500',
-                        closing: 'bg-purple-500',
-                        won: 'bg-green-600',
-                        lost: 'bg-red-500',
-                      }
-
-                      return (
-                        <div key={phase}>
-                          <div className="flex justify-between text-sm mb-1">
-                            <span className="font-medium text-gray-700">
-                              {phaseLabels[phase] || phase}
-                            </span>
-                            <span className="text-gray-900 font-semibold">{count}件</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2.5">
-                            <div
-                              className={`${phaseColors[phase] || 'bg-gray-600'} h-2.5 rounded-full`}
-                              style={{ width: `${percentage}%` }}
-                            />
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+              {/* グラフ2行目：受注率推移と活動種別 */}
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <WinRateTrendChart data={winRateTrend} />
+                <ActivitiesPieChart data={activitiesByType} />
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* 通知パネル */}        <div className="mt-8">          <NotificationPanel />        </div>
+        {/* 通知パネル */}
+        <div className="mt-8">
+          <NotificationPanel />
+        </div>
 
         {/* Phase 3 進行中メッセージ */}
         <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
