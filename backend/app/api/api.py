@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.endpoints import auth, users, customers, properties, deals, activities, daily_reports, contracts, dashboard, notifications, reports, email
+from app.api.endpoints import auth, users, customers, properties, deals, activities, daily_reports, contracts, dashboard, notifications, reports, email, data_import
 
 api_router = APIRouter()
 
@@ -15,3 +15,4 @@ api_router.include_router(dashboard.router, prefix="/dashboard", tags=["ダッ�
 api_router.include_router(notifications.router, prefix="/notifications", tags=["通知"])
 api_router.include_router(reports.router, prefix="/reports", tags=["レポート"])
 api_router.include_router(email.router, prefix="/email", tags=["メール連携"])
+api_router.include_router(data_import.router, prefix="/import", tags=["データインポート"])
