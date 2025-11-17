@@ -1,0 +1,23 @@
+{
+  "name": "CATV SFA - ケーブルテレビ営業支援システム",
+  "short_name": "CATV SFA",
+  "description": "ケーブルテレビ事業者向け営業支援システム（SFA）",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "ja",
+  "dir": "ltr",
+  "screenshots": []
+}

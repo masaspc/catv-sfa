@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Background -->
+  <rect width="512" height="512" rx="64" fill="#2563eb"/>
+
+  <!-- TV Screen -->
+  <rect x="96" y="128" width="320" height="224" rx="16" fill="#ffffff"/>
+
+  <!-- Screen Inner -->
+  <rect x="112" y="144" width="288" height="192" rx="8" fill="#dbeafe"/>
+
+  <!-- Signal Waves -->
+  <g opacity="0.8">
+    <path d="M 200 220 Q 256 180, 312 220" stroke="#2563eb" stroke-width="8" fill="none" stroke-linecap="round"/>
+    <path d="M 180 240 Q 256 180, 332 240" stroke="#2563eb" stroke-width="8" fill="none" stroke-linecap="round"/>
+    <path d="M 160 260 Q 256 180, 352 260" stroke="#2563eb" stroke-width="8" fill="none" stroke-linecap="round"/>
+  </g>
+
+  <!-- Antenna -->
+  <line x1="256" y1="128" x2="256" y2="96" stroke="#ffffff" stroke-width="8" stroke-linecap="round"/>
+  <line x1="256" y1="96" x2="240" y2="72" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+  <line x1="256" y1="96" x2="272" y2="72" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- Stand -->
+  <rect x="216" y="352" width="80" height="16" rx="4" fill="#ffffff"/>
+  <rect x="176" y="368" width="160" height="16" rx="8" fill="#ffffff"/>
+
+  <!-- SFA Text -->
+  <text x="256" y="440" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#ffffff" text-anchor="middle">SFA</text>
+</svg>
