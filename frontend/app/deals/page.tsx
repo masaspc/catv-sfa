@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store/auth-store'
 import { dealsApi, Deal } from '@/lib/deals'
+import { bulkOperationsApi } from '@/lib/bulk-operations'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 
 const dealTypeLabels: { [key: string]: string } = {
   new_individual: '新規個人',
@@ -45,6 +47,11 @@ export default function DealsPage() {
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
   const [showFilters, setShowFilters] = useState(false)
+
+  // 一括操作状態
+  const [selectedIds, setSelectedIds] = useState<number[]>([])
+  const [bulkPhase, setBulkPhase] = useState<string>('')
+  const [showBulkActions, setShowBulkActions] = useState(false)
 
   useEffect(() => {
     checkAuth().then(() => {
@@ -132,6 +139,70 @@ export default function DealsPage() {
     } catch (error) {
       console.error('CSVエクスポートに失敗しました:', error)
       alert('CSVエクスポートに失敗しました')
+    }
+  }
+
+  // 一括操作ハンドラー
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(filteredDeals.map(deal => deal.id))
+    } else {
+      setSelectedIds([])
+    }
+  }
+
+  const handleSelectOne = (id: number, checked: boolean) => {
+    if (checked) {
+      setSelectedIds([...selectedIds, id])
+    } else {
+      setSelectedIds(selectedIds.filter(selectedId => selectedId !== id))
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) {
+      alert('削除する案件を選択してください')
+      return
+    }
+
+    if (!confirm(`選択した${selectedIds.length}件の案件を削除しますか？`)) {
+      return
+    }
+
+    try {
+      const result = await bulkOperationsApi.deleteDeals(selectedIds)
+      alert(`削除完了: 成功${result.processed}件、失敗${result.failed}件`)
+      setSelectedIds([])
+      loadDeals()
+    } catch (error) {
+      console.error('一括削除エラー:', error)
+      alert('一括削除に失敗しました')
+    }
+  }
+
+  const handleBulkUpdatePhase = async () => {
+    if (selectedIds.length === 0) {
+      alert('更新する案件を選択してください')
+      return
+    }
+
+    if (!bulkPhase) {
+      alert('変更後のフェーズを選択してください')
+      return
+    }
+
+    try {
+      const result = await bulkOperationsApi.updateDeals({
+        ids: selectedIds,
+        phase: bulkPhase
+      })
+      alert(`更新完了: 成功${result.processed}件、失敗${result.failed}件`)
+      setSelectedIds([])
+      setBulkPhase('')
+      loadDeals()
+    } catch (error) {
+      console.error('一括更新エラー:', error)
+      alert('一括更新に失敗しました')
     }
   }
 
@@ -289,16 +360,64 @@ export default function DealsPage() {
             <div>
               <CardTitle>案件一覧</CardTitle>
               <CardDescription>
-                クリックして詳細を表示
+                {selectedIds.length > 0 ? `${selectedIds.length}件選択中` : 'クリックして詳細を表示'}
               </CardDescription>
             </div>
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowBulkActions(!showBulkActions)}
+                disabled={filteredDeals.length === 0}
+              >
+                {showBulkActions ? '一括操作を閉じる' : '一括操作'}
+              </Button>
               <Button variant="outline" onClick={handleExportCSV}>
                 CSVエクスポート
               </Button>
               <Button onClick={() => router.push('/deals/new')}>新規案件登録</Button>
             </div>
           </CardHeader>
+
+          {/* 一括操作バー */}
+          {showBulkActions && (
+            <div className="px-6 py-4 bg-gray-50 border-t border-b">
+              <div className="flex gap-4 items-end">
+                <div className="flex-1">
+                  <Label htmlFor="bulk-phase">フェーズ一括変更</Label>
+                  <div className="flex gap-2 mt-2">
+                    <Select value={bulkPhase} onValueChange={setBulkPhase}>
+                      <SelectTrigger id="bulk-phase" className="w-48">
+                        <SelectValue placeholder="フェーズ選択" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(phaseLabels).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      onClick={handleBulkUpdatePhase}
+                      disabled={selectedIds.length === 0 || !bulkPhase}
+                    >
+                      変更適用
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <Button
+                    variant="destructive"
+                    onClick={handleBulkDelete}
+                    disabled={selectedIds.length === 0}
+                  >
+                    選択を削除 ({selectedIds.length})
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <CardContent>
             {loading ? (
               <div className="text-center py-8">
@@ -317,6 +436,14 @@ export default function DealsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        {showBulkActions && (
+                          <TableHead className="w-12">
+                            <Checkbox
+                              checked={selectedIds.length === filteredDeals.length && filteredDeals.length > 0}
+                              onCheckedChange={handleSelectAll}
+                            />
+                          </TableHead>
+                        )}
                         <TableHead>案件名</TableHead>
                         <TableHead>案件種別</TableHead>
                         <TableHead>フェーズ</TableHead>
@@ -329,9 +456,17 @@ export default function DealsPage() {
                       {filteredDeals.map((deal) => (
                         <TableRow
                           key={deal.id}
-                          className="cursor-pointer"
-                          onClick={() => router.push(`/deals/${deal.id}`)}
+                          className={showBulkActions ? '' : 'cursor-pointer'}
+                          onClick={showBulkActions ? undefined : () => router.push(`/deals/${deal.id}`)}
                         >
+                          {showBulkActions && (
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={selectedIds.includes(deal.id)}
+                                onCheckedChange={(checked) => handleSelectOne(deal.id, checked as boolean)}
+                              />
+                            </TableCell>
+                          )}
                           <TableCell className="font-medium">{deal.deal_name}</TableCell>
                           <TableCell>
                             <Badge variant="default">
@@ -359,14 +494,23 @@ export default function DealsPage() {
                   {filteredDeals.map((deal) => (
                     <Card
                       key={deal.id}
-                      className="cursor-pointer hover:bg-gray-50"
-                      onClick={() => router.push(`/deals/${deal.id}`)}
+                      className={showBulkActions ? '' : 'cursor-pointer hover:bg-gray-50'}
+                      onClick={showBulkActions ? undefined : () => router.push(`/deals/${deal.id}`)}
                     >
                       <CardHeader>
                         <div className="flex justify-between items-start">
-                          <div>
-                            <CardTitle className="text-lg">{deal.deal_name}</CardTitle>
-                            <CardDescription>{deal.phase || 'フェーズ未設定'}</CardDescription>
+                          <div className="flex items-start gap-3 flex-1">
+                            {showBulkActions && (
+                              <Checkbox
+                                checked={selectedIds.includes(deal.id)}
+                                onCheckedChange={(checked) => handleSelectOne(deal.id, checked as boolean)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            )}
+                            <div>
+                              <CardTitle className="text-lg">{deal.deal_name}</CardTitle>
+                              <CardDescription>{deal.phase || 'フェーズ未設定'}</CardDescription>
+                            </div>
                           </div>
                           <Badge variant="default">
                             {dealTypeLabels[deal.deal_type]}
