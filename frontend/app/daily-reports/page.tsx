@@ -4,10 +4,12 @@ import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store/auth-store'
 import { dailyReportsApi, DailyReport } from '@/lib/daily-reports'
+import { bulkOperationsApi } from '@/lib/bulk-operations'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 
 export default function DailyReportsPage() {
@@ -19,6 +21,10 @@ export default function DailyReportsPage() {
   // フィルタ状態
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
+
+  // 一括操作状態
+  const [selectedIds, setSelectedIds] = useState<number[]>([])
+  const [showBulkActions, setShowBulkActions] = useState(false)
 
   useEffect(() => {
     checkAuth().then(() => {
@@ -77,6 +83,46 @@ export default function DailyReportsPage() {
     } catch (error) {
       console.error('CSVエクスポートに失敗しました:', error)
       alert('CSVエクスポートに失敗しました')
+    }
+  }
+
+  // 一括操作ハンドラー
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(filteredDailyReports.map(report => report.id))
+    } else {
+      setSelectedIds([])
+    }
+  }
+
+  const handleSelectOne = (id: number, checked: boolean) => {
+    if (checked) {
+      setSelectedIds([...selectedIds, id])
+    } else {
+      setSelectedIds(selectedIds.filter(selectedId => selectedId !== id))
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`選択した${selectedIds.length}件の日報を削除しますか？`)) {
+      return
+    }
+
+    try {
+      const result = await bulkOperationsApi.deleteDailyReports(selectedIds)
+
+      if (result.failed > 0) {
+        alert(`削除完了: 成功${result.processed}件、失敗${result.failed}件\n\n${result.errors.join('\n')}`)
+      } else {
+        alert(`${result.processed}件の日報を削除しました`)
+      }
+
+      setSelectedIds([])
+      setShowBulkActions(false)
+      await loadDailyReports()
+    } catch (error) {
+      console.error('一括削除に失敗しました:', error)
+      alert('一括削除に失敗しました')
     }
   }
 
@@ -152,12 +198,40 @@ export default function DailyReportsPage() {
               </CardDescription>
             </div>
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowBulkActions(!showBulkActions)
+                  setSelectedIds([])
+                }}
+              >
+                {showBulkActions ? '一括操作を閉じる' : '一括操作'}
+              </Button>
               <Button variant="outline" onClick={handleExportCSV}>
                 CSVエクスポート
               </Button>
               <Button onClick={() => router.push('/daily-reports/new')}>日報を入力</Button>
             </div>
           </CardHeader>
+
+          {/* 一括操作バー */}
+          {showBulkActions && selectedIds.length > 0 && (
+            <div className="px-6 py-4 bg-gray-50 border-t border-b">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-600">
+                  {selectedIds.length}件選択中
+                </p>
+                <Button
+                  variant="destructive"
+                  onClick={handleBulkDelete}
+                  disabled={selectedIds.length === 0}
+                >
+                  選択を削除 ({selectedIds.length})
+                </Button>
+              </div>
+            </div>
+          )}
+
           <CardContent>
             {loading ? (
               <div className="text-center py-8">
@@ -176,6 +250,14 @@ export default function DailyReportsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        {showBulkActions && (
+                          <TableHead className="w-12">
+                            <Checkbox
+                              checked={selectedIds.length === filteredDailyReports.length && filteredDailyReports.length > 0}
+                              onCheckedChange={handleSelectAll}
+                            />
+                          </TableHead>
+                        )}
                         <TableHead>報告日</TableHead>
                         <TableHead>訪問件数</TableHead>
                         <TableHead>新規接触</TableHead>
@@ -188,9 +270,17 @@ export default function DailyReportsPage() {
                       {filteredDailyReports.map((report) => (
                         <TableRow
                           key={report.id}
-                          className="cursor-pointer"
-                          onClick={() => router.push(`/daily-reports/${report.id}`)}
+                          className={showBulkActions ? '' : 'cursor-pointer hover:bg-gray-50'}
+                          onClick={showBulkActions ? undefined : () => router.push(`/daily-reports/${report.id}`)}
                         >
+                          {showBulkActions && (
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={selectedIds.includes(report.id)}
+                                onCheckedChange={(checked) => handleSelectOne(report.id, checked as boolean)}
+                              />
+                            </TableCell>
+                          )}
                           <TableCell className="font-medium">
                             {new Date(report.report_date).toLocaleDateString('ja-JP')}
                           </TableCell>
@@ -214,18 +304,29 @@ export default function DailyReportsPage() {
                   {filteredDailyReports.map((report) => (
                     <Card
                       key={report.id}
-                      className="cursor-pointer hover:bg-gray-50"
-                      onClick={() => router.push(`/daily-reports/${report.id}`)}
+                      className={showBulkActions ? '' : 'cursor-pointer hover:bg-gray-50'}
+                      onClick={showBulkActions ? undefined : () => router.push(`/daily-reports/${report.id}`)}
                     >
                       <CardHeader>
-                        <CardTitle className="text-lg">
-                          {new Date(report.report_date).toLocaleDateString('ja-JP')}
-                        </CardTitle>
-                        {report.start_time && report.end_time && (
-                          <CardDescription>
-                            {report.start_time} - {report.end_time}
-                          </CardDescription>
-                        )}
+                        <div className="flex items-start gap-3">
+                          {showBulkActions && (
+                            <Checkbox
+                              checked={selectedIds.includes(report.id)}
+                              onCheckedChange={(checked) => handleSelectOne(report.id, checked as boolean)}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          )}
+                          <div className="flex-1">
+                            <CardTitle className="text-lg">
+                              {new Date(report.report_date).toLocaleDateString('ja-JP')}
+                            </CardTitle>
+                            {report.start_time && report.end_time && (
+                              <CardDescription>
+                                {report.start_time} - {report.end_time}
+                              </CardDescription>
+                            )}
+                          </div>
+                        </div>
                       </CardHeader>
                       <CardContent>
                         <dl className="grid grid-cols-2 gap-2 text-sm">

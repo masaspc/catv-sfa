@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store/auth-store'
 import { customersApi, Customer } from '@/lib/customers'
+import { bulkOperationsApi } from '@/lib/bulk-operations'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 
 const customerTypeLabels: { [key: string]: string } = {
   prospect: '見込客',
@@ -31,6 +33,8 @@ export default function CustomersPage() {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedIds, setSelectedIds] = useState<number[]>([])
+  const [showBulkActions, setShowBulkActions] = useState(false)
 
   useEffect(() => {
     checkAuth().then(() => {
@@ -74,6 +78,46 @@ export default function CustomersPage() {
       console.error('検索に失敗しました:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // 一括操作ハンドラー
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(customers.map(customer => customer.id))
+    } else {
+      setSelectedIds([])
+    }
+  }
+
+  const handleSelectOne = (id: number, checked: boolean) => {
+    if (checked) {
+      setSelectedIds([...selectedIds, id])
+    } else {
+      setSelectedIds(selectedIds.filter(selectedId => selectedId !== id))
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`選択した${selectedIds.length}件の顧客を削除しますか？\n関連する案件や営業活動も削除されます。`)) {
+      return
+    }
+
+    try {
+      const result = await bulkOperationsApi.deleteCustomers(selectedIds)
+
+      if (result.failed > 0) {
+        alert(`削除完了: 成功${result.processed}件、失敗${result.failed}件\n\n${result.errors.join('\n')}`)
+      } else {
+        alert(`${result.processed}件の顧客を削除しました`)
+      }
+
+      setSelectedIds([])
+      setShowBulkActions(false)
+      await loadCustomers()
+    } catch (error) {
+      console.error('一括削除に失敗しました:', error)
+      alert('一括削除に失敗しました')
     }
   }
 
@@ -140,8 +184,38 @@ export default function CustomersPage() {
                 クリックして詳細を表示
               </CardDescription>
             </div>
-            <Button onClick={() => router.push('/customers/new')}>新規顧客登録</Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowBulkActions(!showBulkActions)
+                  setSelectedIds([])
+                }}
+              >
+                {showBulkActions ? '一括操作を閉じる' : '一括操作'}
+              </Button>
+              <Button onClick={() => router.push('/customers/new')}>新規顧客登録</Button>
+            </div>
           </CardHeader>
+
+          {/* 一括操作バー */}
+          {showBulkActions && selectedIds.length > 0 && (
+            <div className="px-6 py-4 bg-gray-50 border-t border-b">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-600">
+                  {selectedIds.length}件選択中
+                </p>
+                <Button
+                  variant="destructive"
+                  onClick={handleBulkDelete}
+                  disabled={selectedIds.length === 0}
+                >
+                  選択を削除 ({selectedIds.length})
+                </Button>
+              </div>
+            </div>
+          )}
+
           <CardContent>
             {loading ? (
               <div className="text-center py-8">
@@ -158,6 +232,14 @@ export default function CustomersPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        {showBulkActions && (
+                          <TableHead className="w-12">
+                            <Checkbox
+                              checked={selectedIds.length === customers.length && customers.length > 0}
+                              onCheckedChange={handleSelectAll}
+                            />
+                          </TableHead>
+                        )}
                         <TableHead>顧客名</TableHead>
                         <TableHead>電話番号</TableHead>
                         <TableHead>メール</TableHead>
@@ -170,9 +252,17 @@ export default function CustomersPage() {
                       {customers.map((customer) => (
                         <TableRow
                           key={customer.id}
-                          className="cursor-pointer"
-                          onClick={() => router.push(`/customers/${customer.id}`)}
+                          className={showBulkActions ? '' : 'cursor-pointer hover:bg-gray-50'}
+                          onClick={showBulkActions ? undefined : () => router.push(`/customers/${customer.id}`)}
                         >
+                          {showBulkActions && (
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={selectedIds.includes(customer.id)}
+                                onCheckedChange={(checked) => handleSelectOne(customer.id, checked as boolean)}
+                              />
+                            </TableCell>
+                          )}
                           <TableCell className="font-medium">
                             {customer.name}
                             {customer.name_kana && (
@@ -205,16 +295,25 @@ export default function CustomersPage() {
                   {customers.map((customer) => (
                     <Card
                       key={customer.id}
-                      className="cursor-pointer hover:bg-gray-50"
-                      onClick={() => router.push(`/customers/${customer.id}`)}
+                      className={showBulkActions ? '' : 'cursor-pointer hover:bg-gray-50'}
+                      onClick={showBulkActions ? undefined : () => router.push(`/customers/${customer.id}`)}
                     >
                       <CardHeader>
                         <div className="flex justify-between items-start">
-                          <div>
-                            <CardTitle className="text-lg">{customer.name}</CardTitle>
-                            {customer.name_kana && (
-                              <CardDescription>{customer.name_kana}</CardDescription>
+                          <div className="flex items-start gap-3 flex-1">
+                            {showBulkActions && (
+                              <Checkbox
+                                checked={selectedIds.includes(customer.id)}
+                                onCheckedChange={(checked) => handleSelectOne(customer.id, checked as boolean)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
                             )}
+                            <div>
+                              <CardTitle className="text-lg">{customer.name}</CardTitle>
+                              {customer.name_kana && (
+                                <CardDescription>{customer.name_kana}</CardDescription>
+                              )}
+                            </div>
                           </div>
                           <Badge variant={customerTypeBadgeVariant[customer.customer_type]}>
                             {customerTypeLabels[customer.customer_type]}

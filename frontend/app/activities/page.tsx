@@ -4,11 +4,13 @@ import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store/auth-store'
 import { activitiesApi, Activity } from '@/lib/activities'
+import { bulkOperationsApi } from '@/lib/bulk-operations'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 
@@ -40,6 +42,11 @@ export default function ActivitiesPage() {
   const [endDate, setEndDate] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+
+  // 一括操作状態
+  const [selectedIds, setSelectedIds] = useState<number[]>([])
+  const [showBulkActions, setShowBulkActions] = useState(false)
+  const [bulkActivityType, setBulkActivityType] = useState<string>('')
 
   useEffect(() => {
     checkAuth().then(() => {
@@ -116,6 +123,77 @@ export default function ActivitiesPage() {
     } catch (error) {
       console.error('CSVエクスポートに失敗しました:', error)
       alert('CSVエクスポートに失敗しました')
+    }
+  }
+
+  // 一括操作ハンドラー
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(filteredActivities.map(activity => activity.id))
+    } else {
+      setSelectedIds([])
+    }
+  }
+
+  const handleSelectOne = (id: number, checked: boolean) => {
+    if (checked) {
+      setSelectedIds([...selectedIds, id])
+    } else {
+      setSelectedIds(selectedIds.filter(selectedId => selectedId !== id))
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`選択した${selectedIds.length}件の営業活動を削除しますか？`)) {
+      return
+    }
+
+    try {
+      const result = await bulkOperationsApi.deleteActivities(selectedIds)
+
+      if (result.failed > 0) {
+        alert(`削除完了: 成功${result.processed}件、失敗${result.failed}件\n\n${result.errors.join('\n')}`)
+      } else {
+        alert(`${result.processed}件の営業活動を削除しました`)
+      }
+
+      setSelectedIds([])
+      setShowBulkActions(false)
+      await loadActivities()
+    } catch (error) {
+      console.error('一括削除に失敗しました:', error)
+      alert('一括削除に失敗しました')
+    }
+  }
+
+  const handleBulkUpdateActivityType = async () => {
+    if (!bulkActivityType) {
+      alert('活動種別を選択してください')
+      return
+    }
+
+    if (!confirm(`選択した${selectedIds.length}件の活動種別を「${activityTypeLabels[bulkActivityType]}」に変更しますか？`)) {
+      return
+    }
+
+    try {
+      const result = await bulkOperationsApi.updateActivities({
+        ids: selectedIds,
+        activity_type: bulkActivityType
+      })
+
+      if (result.failed > 0) {
+        alert(`更新完了: 成功${result.processed}件、失敗${result.failed}件\n\n${result.errors.join('\n')}`)
+      } else {
+        alert(`${result.processed}件の営業活動を更新しました`)
+      }
+
+      setSelectedIds([])
+      setBulkActivityType('')
+      await loadActivities()
+    } catch (error) {
+      console.error('一括更新に失敗しました:', error)
+      alert('一括更新に失敗しました')
     }
   }
 
@@ -233,12 +311,59 @@ export default function ActivitiesPage() {
               </CardDescription>
             </div>
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowBulkActions(!showBulkActions)
+                  setSelectedIds([])
+                }}
+              >
+                {showBulkActions ? '一括操作を閉じる' : '一括操作'}
+              </Button>
               <Button variant="outline" onClick={handleExportCSV}>
                 CSVエクスポート
               </Button>
               <Button onClick={() => router.push('/activities/new')}>活動を記録</Button>
             </div>
           </CardHeader>
+
+          {/* 一括操作バー */}
+          {showBulkActions && selectedIds.length > 0 && (
+            <div className="px-6 py-4 bg-gray-50 border-t border-b">
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-sm text-gray-600">
+                  {selectedIds.length}件選択中
+                </p>
+                <div className="flex items-center gap-2">
+                  <Select value={bulkActivityType} onValueChange={setBulkActivityType}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="活動種別を選択" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(activityTypeLabels).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    onClick={handleBulkUpdateActivityType}
+                    disabled={!bulkActivityType}
+                  >
+                    種別を変更
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={handleBulkDelete}
+                  >
+                    選択を削除 ({selectedIds.length})
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <CardContent>
             {loading ? (
               <div className="text-center py-8">
@@ -257,6 +382,14 @@ export default function ActivitiesPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        {showBulkActions && (
+                          <TableHead className="w-12">
+                            <Checkbox
+                              checked={selectedIds.length === filteredActivities.length && filteredActivities.length > 0}
+                              onCheckedChange={handleSelectAll}
+                            />
+                          </TableHead>
+                        )}
                         <TableHead>活動日時</TableHead>
                         <TableHead>活動種別</TableHead>
                         <TableHead>内容</TableHead>
@@ -268,9 +401,17 @@ export default function ActivitiesPage() {
                       {filteredActivities.map((activity) => (
                         <TableRow
                           key={activity.id}
-                          className="cursor-pointer"
-                          onClick={() => router.push(`/activities/${activity.id}`)}
+                          className={showBulkActions ? '' : 'cursor-pointer hover:bg-gray-50'}
+                          onClick={showBulkActions ? undefined : () => router.push(`/activities/${activity.id}`)}
                         >
+                          {showBulkActions && (
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={selectedIds.includes(activity.id)}
+                                onCheckedChange={(checked) => handleSelectOne(activity.id, checked as boolean)}
+                              />
+                            </TableCell>
+                          )}
                           <TableCell className="font-medium">
                             {new Date(activity.activity_date).toLocaleString('ja-JP')}
                           </TableCell>
@@ -311,18 +452,27 @@ export default function ActivitiesPage() {
                   {filteredActivities.map((activity) => (
                     <Card
                       key={activity.id}
-                      className="cursor-pointer hover:bg-gray-50"
-                      onClick={() => router.push(`/activities/${activity.id}`)}
+                      className={showBulkActions ? '' : 'cursor-pointer hover:bg-gray-50'}
+                      onClick={showBulkActions ? undefined : () => router.push(`/activities/${activity.id}`)}
                     >
                       <CardHeader>
                         <div className="flex justify-between items-start">
-                          <div>
-                            <CardTitle className="text-lg">
-                              {new Date(activity.activity_date).toLocaleDateString('ja-JP')}
-                            </CardTitle>
-                            <CardDescription>
-                              {new Date(activity.activity_date).toLocaleTimeString('ja-JP')}
-                            </CardDescription>
+                          <div className="flex items-start gap-3 flex-1">
+                            {showBulkActions && (
+                              <Checkbox
+                                checked={selectedIds.includes(activity.id)}
+                                onCheckedChange={(checked) => handleSelectOne(activity.id, checked as boolean)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            )}
+                            <div>
+                              <CardTitle className="text-lg">
+                                {new Date(activity.activity_date).toLocaleDateString('ja-JP')}
+                              </CardTitle>
+                              <CardDescription>
+                                {new Date(activity.activity_date).toLocaleTimeString('ja-JP')}
+                              </CardDescription>
+                            </div>
                           </div>
                           <Badge variant={activityTypeBadgeVariant[activity.activity_type]}>
                             {activityTypeLabels[activity.activity_type]}
