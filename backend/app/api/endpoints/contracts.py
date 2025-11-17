@@ -1,11 +1,14 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from app.api import deps
 from app.crud import crud_contract
 from app.models.user import User
 from app.schemas.contract import Contract, ContractCreate, ContractUpdate
+from app.utils.export import export_to_csv, convert_to_dict_list
 
 router = APIRouter()
 
@@ -121,3 +124,30 @@ def delete_contract(
 
     contract = crud_contract.remove(db, id=contract_id)
     return contract
+
+
+
+@router.get("/export/csv")
+def export_contracts_csv(
+    db: Session = Depends(deps.get_db),
+    skip: int = 0,
+    limit: int = 10000,
+    current_user: User = Depends(deps.get_current_user),
+) -> StreamingResponse:
+    """
+    契約データをCSV形式でエクスポート
+    """
+    contracts = crud_contract.get_multi(db, skip=skip, limit=limit)
+    contracts_dict = convert_to_dict_list(contracts)
+
+    headers = [
+        "id", "service_type", "plan_name", "monthly_fee", "payment_method",
+        "start_date", "end_date", "customer_id", "property_id", "notes",
+        "created_at", "updated_at"
+    ]
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"contracts_{timestamp}.csv"
+
+    return export_to_csv(contracts_dict, filename, headers)
+

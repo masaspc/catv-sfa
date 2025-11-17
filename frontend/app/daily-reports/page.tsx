@@ -71,6 +71,15 @@ export default function DailyReportsPage() {
     setEndDate('')
   }
 
+  const handleExportCSV = async () => {
+    try {
+      await dailyReportsApi.exportToCSV()
+    } catch (error) {
+      console.error('CSVエクスポートに失敗しました:', error)
+      alert('CSVエクスポートに失敗しました')
+    }
+  }
+
   if (!user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -142,7 +151,12 @@ export default function DailyReportsPage() {
                 クリックして詳細を表示
               </CardDescription>
             </div>
-            <Button onClick={() => router.push('/daily-reports/new')}>日報を入力</Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleExportCSV}>
+                CSVエクスポート
+              </Button>
+              <Button onClick={() => router.push('/daily-reports/new')}>日報を入力</Button>
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (

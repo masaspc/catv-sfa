@@ -78,6 +78,15 @@ export default function ContractsPage() {
     }
   }
 
+  const handleExportCSV = async () => {
+    try {
+      await contractsApi.exportToCSV()
+    } catch (error) {
+      console.error('CSVエクスポートに失敗しました:', error)
+      alert('CSVエクスポートに失敗しました')
+    }
+  }
+
   if (!user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -153,7 +162,12 @@ export default function ContractsPage() {
                 クリックして詳細を表示
               </CardDescription>
             </div>
-            <Button onClick={() => router.push('/contracts/new')}>新規契約登録</Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleExportCSV}>
+                CSVエクスポート
+              </Button>
+              <Button onClick={() => router.push('/contracts/new')}>新規契約登録</Button>
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (

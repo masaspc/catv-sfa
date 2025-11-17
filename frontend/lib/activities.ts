@@ -63,4 +63,23 @@ export const activitiesApi = {
   deleteActivity: async (id: number): Promise<void> => {
     await api.delete(`/activities/${id}`)
   },
+
+  // CSVエクスポート
+  exportToCSV: async (): Promise<void> => {
+    const response = await api.get('/activities/export/csv', {
+      responseType: 'blob',
+    })
+
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
+    link.setAttribute('download', `activities_${timestamp}.csv`)
+
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  },
 }

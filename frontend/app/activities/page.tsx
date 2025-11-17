@@ -110,6 +110,15 @@ export default function ActivitiesPage() {
     setEndDate('')
   }
 
+  const handleExportCSV = async () => {
+    try {
+      await activitiesApi.exportToCSV()
+    } catch (error) {
+      console.error('CSVエクスポートに失敗しました:', error)
+      alert('CSVエクスポートに失敗しました')
+    }
+  }
+
   if (!user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -223,7 +232,12 @@ export default function ActivitiesPage() {
                 クリックして詳細を表示
               </CardDescription>
             </div>
-            <Button onClick={() => router.push('/activities/new')}>活動を記録</Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleExportCSV}>
+                CSVエクスポート
+              </Button>
+              <Button onClick={() => router.push('/activities/new')}>活動を記録</Button>
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (

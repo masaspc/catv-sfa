@@ -126,6 +126,15 @@ export default function DealsPage() {
     setEndDate('')
   }
 
+  const handleExportCSV = async () => {
+    try {
+      await dealsApi.exportToCSV()
+    } catch (error) {
+      console.error('CSVエクスポートに失敗しました:', error)
+      alert('CSVエクスポートに失敗しました')
+    }
+  }
+
   if (!user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -283,7 +292,12 @@ export default function DealsPage() {
                 クリックして詳細を表示
               </CardDescription>
             </div>
-            <Button onClick={() => router.push('/deals/new')}>新規案件登録</Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleExportCSV}>
+                CSVエクスポート
+              </Button>
+              <Button onClick={() => router.push('/deals/new')}>新規案件登録</Button>
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (

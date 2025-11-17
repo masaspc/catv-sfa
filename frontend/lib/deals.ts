@@ -65,4 +65,25 @@ export const dealsApi = {
     const response = await api.get<Deal[]>(`/deals/search?query=${query}`)
     return response.data
   },
+
+  // CSVエクスポート
+  exportToCSV: async (): Promise<void> => {
+    const response = await api.get('/deals/export/csv', {
+      responseType: 'blob',
+    })
+
+    // ダウンロード用のリンクを作成
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+
+    // ファイル名を設定（現在日時を含む）
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
+    link.setAttribute('download', `deals_${timestamp}.csv`)
+
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  },
 }

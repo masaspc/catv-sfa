@@ -1,11 +1,14 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from app.api import deps
 from app.crud import crud_deal
 from app.models.user import User
 from app.schemas.deal import Deal, DealCreate, DealUpdate
+from app.utils.export import export_to_csv, convert_to_dict_list
 
 router = APIRouter()
 
@@ -125,3 +128,48 @@ def delete_deal(
 
     deal = crud_deal.remove(db, id=deal_id)
     return deal
+
+
+@router.get("/export/csv")
+def export_deals_csv(
+    db: Session = Depends(deps.get_db),
+    skip: int = 0,
+    limit: int = 10000,
+    current_user: User = Depends(deps.get_current_user),
+) -> StreamingResponse:
+    """
+    案件データをCSV形式でエクスポート
+    """
+    if current_user.role == "sales":
+        # 営業担当者は自分の案件のみ
+        deals = crud_deal.get_by_sales_person(db, sales_person_id=current_user.id, skip=skip, limit=limit)
+    else:
+        # 管理者・マネージャーは全件
+        deals = crud_deal.get_multi(db, skip=skip, limit=limit)
+
+    # オブジェクトを辞書のリストに変換
+    deals_dict = convert_to_dict_list(deals)
+
+    # CSVヘッダーの定義
+    headers = [
+        "id",
+        "deal_name",
+        "deal_type",
+        "estimated_amount",
+        "probability",
+        "phase",
+        "expected_close_date",
+        "actual_close_date",
+        "lost_reason",
+        "customer_id",
+        "property_id",
+        "sales_person_id",
+        "created_at",
+        "updated_at"
+    ]
+
+    # ファイル名に現在日時を含める
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"deals_{timestamp}.csv"
+
+    return export_to_csv(deals_dict, filename, headers)

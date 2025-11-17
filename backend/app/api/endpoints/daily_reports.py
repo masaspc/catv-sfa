@@ -1,12 +1,14 @@
 from typing import List
-from datetime import date
+from datetime import date, datetime
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.api import deps
 from app.crud import crud_daily_report
 from app.models.user import User
 from app.schemas.daily_report import DailyReport, DailyReportCreate, DailyReportUpdate
+from app.utils.export import export_to_csv, convert_to_dict_list
 
 router = APIRouter()
 
@@ -129,3 +131,35 @@ def delete_daily_report(
 
     daily_report = crud_daily_report.remove(db, id=daily_report_id)
     return daily_report
+
+
+
+@router.get("/export/csv")
+def export_daily_reports_csv(
+    db: Session = Depends(deps.get_db),
+    skip: int = 0,
+    limit: int = 10000,
+    current_user: User = Depends(deps.get_current_user),
+) -> StreamingResponse:
+    """
+    日報データをCSV形式でエクスポート
+    """
+    if current_user.role == "sales":
+        daily_reports = crud_daily_report.get_by_sales_person(db, sales_person_id=current_user.id, skip=skip, limit=limit)
+    else:
+        daily_reports = crud_daily_report.get_multi(db, skip=skip, limit=limit)
+
+    daily_reports_dict = convert_to_dict_list(daily_reports)
+
+    headers = [
+        "id", "report_date", "start_time", "end_time", "work_hours",
+        "visits_count", "new_contacts_count", "meetings_count", "orders_count",
+        "content", "issues", "tomorrow_plan", "sales_person_id",
+        "created_at", "updated_at"
+    ]
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"daily_reports_{timestamp}.csv"
+
+    return export_to_csv(daily_reports_dict, filename, headers)
+
