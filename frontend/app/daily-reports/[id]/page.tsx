@@ -81,9 +81,14 @@ export default function DailyReportDetailPage({ params }: { params: { id: string
         <div className="space-y-6">
           {/* 基本情報 */}
           <Card>
-            <CardHeader>
-              <CardTitle>基本情報</CardTitle>
-              <CardDescription>報告日と勤務時間</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>基本情報</CardTitle>
+                <CardDescription>報告日と勤務時間</CardDescription>
+              </div>
+              <Button onClick={() => router.push(`/daily-reports/${report.id}/edit`)}>
+                編集
+              </Button>
             </CardHeader>
             <CardContent>
               <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
